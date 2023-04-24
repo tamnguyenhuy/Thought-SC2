@@ -393,4 +393,3 @@ class MiniSourceAgent(base_agent.BaseAgent):
         else:
             return values
 
-    

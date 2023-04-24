@@ -27,11 +27,11 @@ def cut_file(record_path):
 
 def train(record_path, is_restore=False, is_norm=False):
     # train model
-    config = tf.ConfigProto(
+    config = tf.compat.v1.ConfigProto(
         allow_soft_placement=True, log_device_placement=False,
     )
     config.gpu_options.allow_growth = True
-    sess = tf.Session(config=config)
+    sess = tf.compat.v1.Session(config=config)
     model_path = "./model/" + "20190218-182616" + "_dynamic/"
     dynamic_net = DynamicNetwork(name='train', sess=sess, load_path=model_path)
     dynamic_net.initialize()

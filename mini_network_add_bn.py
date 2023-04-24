@@ -11,7 +11,7 @@ _SIZE_MINI_ACTIONS = 10
 
 class MiniNetwork(object):
 
-    def __init__(self, sess=None, summary_writer=tf.summary.FileWriter("logs/"), rl_training=False,
+    def __init__(self, sess=None, summary_writer=tf.compat.v1.summary.FileWriter("logs/"), rl_training=False,
                  reuse=False, cluster=None, index=0, device='/gpu:0',
                  ppo_load_path=None, ppo_save_path=None, 
                  ob_space_add=0, act_space_add=0, freeze_head=False, use_bn=False, use_sep_net=True,
@@ -50,11 +50,11 @@ class MiniNetwork(object):
             
         self._create_graph()
 
-        self.rl_saver = tf.train.Saver()
+        self.rl_saver = tf.compat.v1.train.Saver()
         self.summary_writer = summary_writer
 
     def initialize(self):
-        init_op = tf.global_variables_initializer()
+        init_op = tf.compat.v1.global_variables_initializer()
         self.sess.run(init_op)
 
     def reset_old_network(self):
@@ -67,24 +67,24 @@ class MiniNetwork(object):
     def _create_graph(self):
         if self.reuse:
             print("Reuse !")
-            tf.get_variable_scope().reuse_variables()
-            assert tf.get_variable_scope().reuse
+            tf.compat.v1.get_variable_scope().reuse_variables()
+            assert tf.compat.v1.get_variable_scope().reuse
         
         print("Hello !")
             
         worker_device = "/job:worker/task:%d" % self.index + self.device
-        with tf.device(tf.train.replica_device_setter(worker_device=worker_device, cluster=self.cluster)):
-            self.results_sum = tf.get_variable(name="results_sum", shape=[], initializer=tf.zeros_initializer)
-            self.game_num = tf.get_variable(name="game_num", shape=[], initializer=tf.zeros_initializer)
+        with tf.device(tf.compat.v1.train.replica_device_setter(worker_device=worker_device, cluster=self.cluster)):
+            self.results_sum = tf.compat.v1.get_variable(name="results_sum", shape=[], initializer=tf.compat.v1.zeros_initializer)
+            self.game_num = tf.compat.v1.get_variable(name="game_num", shape=[], initializer=tf.compat.v1.zeros_initializer)
 
-            self.global_steps = tf.get_variable(name="global_steps", shape=[], initializer=tf.zeros_initializer)
+            self.global_steps = tf.compat.v1.get_variable(name="global_steps", shape=[], initializer=tf.compat.v1.zeros_initializer)
             self.win_rate = self.results_sum / self.game_num
 
-            self.mean_win_rate = tf.summary.scalar('mean_win_rate_dis', self.results_sum / self.game_num)
-            self.merged = tf.summary.merge([self.mean_win_rate])
+            self.mean_win_rate = tf.compat.v1.summary.scalar('mean_win_rate_dis', self.results_sum / self.game_num)
+            self.merged = tf.compat.v1.summary.merge([self.mean_win_rate])
 
             mini_scope = "MiniPolicyNN"
-            with tf.variable_scope(mini_scope):
+            with tf.compat.v1.variable_scope(mini_scope):
                 ob_space = _SIZE_MINI_INPUT
                 act_space_array = _SIZE_MINI_ACTIONS
                 self.policy = Policy_net('policy', self.sess, ob_space, self.ob_space_add, 
@@ -93,20 +93,20 @@ class MiniNetwork(object):
                     act_space_array, self.act_space_add, self.freeze_head, self.use_bn, self.use_sep_net)
                 self.policy_ppo = PPOTrain('PPO', self.sess, self.policy, self.policy_old, lr=self.lr, epoch_num=self.epoch_num)
             
-            var_train_list = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
-            var_all_list = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
+            var_train_list = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES)
+            var_all_list = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.GLOBAL_VARIABLES)
 
             if self.restore_model:
                 print('restore_model')
                 if self.restore_from == 'mini' and self.restore_to == 'mini':
                     print('restore_model: mini to mini')
-                    self.old_policy_saver = tf.train.Saver(var_list=variables_to_restore)
+                    self.old_policy_saver = tf.compat.v1.train.Saver(var_list=variables_to_restore)
                 elif self.restore_from == 'mini' and self.restore_to == 'source':
                     print('restore_model: mini to source')    
                     if self.use_add:
                         print('restore_model: mini to source, use_add')
-                        variables_to_restore = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.policy.scope)
-                        old_variables_to_restore = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.policy_old.scope)
+                        variables_to_restore = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.GLOBAL_VARIABLES, scope=self.policy.scope)
+                        old_variables_to_restore = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.GLOBAL_VARIABLES, scope=self.policy_old.scope)
                         variables_to_restore += old_variables_to_restore
            
                         variables_to_restore = [v for v in variables_to_restore if len(v.name.split('/')) > 2 and 'DenseLayer3' not in v.name.split('/')]
@@ -114,17 +114,17 @@ class MiniNetwork(object):
                         variables_to_restore = [v for v in variables_to_restore if len(v.name.split('/')) > 2 and 
                             'AdaptiveWeight:0' not in v.name.split('/') and 'AttentionWeight' not in v.name.split('/')]
                         print('variables_to_restore:', variables_to_restore)
-                        self.old_policy_saver = tf.train.Saver(var_list=variables_to_restore)
+                        self.old_policy_saver = tf.compat.v1.train.Saver(var_list=variables_to_restore)
                     else:
-                        self.old_policy_saver = tf.train.Saver(var_list=var_all_list)
+                        self.old_policy_saver = tf.compat.v1.train.Saver(var_list=var_all_list)
                 elif self.restore_from == 'source' and self.restore_to == 'source':
-                    self.old_policy_saver = tf.train.Saver(var_list=var_all_list)                
+                    self.old_policy_saver = tf.compat.v1.train.Saver(var_list=var_all_list)                
                 else:
-                    self.old_policy_saver = tf.train.Saver(var_list=var_all_list)
+                    self.old_policy_saver = tf.compat.v1.train.Saver(var_list=var_all_list)
             else:
-                self.old_policy_saver = tf.train.Saver(var_list=var_all_list)
+                self.old_policy_saver = tf.compat.v1.train.Saver(var_list=var_all_list)
 
-            self.new_policy_saver = tf.train.Saver(var_list=var_all_list)
+            self.new_policy_saver = tf.compat.v1.train.Saver(var_list=var_all_list)
             
 
     def Update_result(self, result_list):

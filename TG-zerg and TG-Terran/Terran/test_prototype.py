@@ -191,13 +191,13 @@ def run_thread(agent, game_num, Synchronizer, difficulty):
 
 
 def Worker(index, update_game_num, Synchronizer, cluster):
-    config = tf.ConfigProto(
+    config = tf.compat.v1.ConfigProto(
         allow_soft_placement=True, log_device_placement=False,
     )
     config.gpu_options.allow_growth = True
-    worker = tf.train.Server(cluster, job_name="worker", task_index=index, config=config)
+    worker = tf.distribute.Server(cluster, job_name="worker", task_index=index, config=config)
     #config.gpu_options.per_process_gpu_memory_fraction = 0.2
-    sess = tf.Session(target=worker.target, config=config)
+    sess = tf.compat.v1.Session(target=worker.target, config=config)
     Net = HierNetwork(sess=sess, summary_writer=None, rl_training=FLAGS.training,
                       cluster=cluster, index=index, device=DEVICE[index % len(DEVICE)],
                       ppo_load_path=FLAGS.restore_model_path, dynamic_load_path=FLAGS.restore_dynamic_path)
@@ -218,10 +218,10 @@ def Worker(index, update_game_num, Synchronizer, cluster):
         agents.append(agent)
 
     print("Worker %d: waiting for cluster connection..." % index)
-    sess.run(tf.report_uninitialized_variables())
+    sess.run(tf.compat.v1.report_uninitialized_variables())
     print("Worker %d: cluster ready!" % index)
 
-    while len(sess.run(tf.report_uninitialized_variables())):
+    while len(sess.run(tf.compat.v1.report_uninitialized_variables())):
         print("Worker %d: waiting for variable initialization..." % index)
         time.sleep(1)
     print("Worker %d: variables initialized" % index)
@@ -247,14 +247,14 @@ def Worker(index, update_game_num, Synchronizer, cluster):
 
 
 def Parameter_Server(Synchronizer, cluster, log_path):
-    config = tf.ConfigProto(
+    config = tf.compat.v1.ConfigProto(
         allow_soft_placement=True, log_device_placement=False,
     )
     config.gpu_options.allow_growth = True
-    server = tf.train.Server(cluster, job_name="ps", task_index=0, config=config)
+    server = tf.distribute.Server(cluster, job_name="ps", task_index=0, config=config)
     #config.gpu_options.per_process_gpu_memory_fraction = 0.2
-    sess = tf.Session(target=server.target, config=config)
-    summary_writer = tf.summary.FileWriter(log_path)
+    sess = tf.compat.v1.Session(target=server.target, config=config)
+    summary_writer = tf.compat.v1.summary.FileWriter(log_path)
     Net = HierNetwork(sess=sess, summary_writer=summary_writer, rl_training=FLAGS.training,
                       cluster=cluster, index=0, device=DEVICE[0 % len(DEVICE)],
                       ppo_load_path=FLAGS.restore_model_path, dynamic_load_path=FLAGS.restore_dynamic_path)
@@ -269,7 +269,7 @@ def Parameter_Server(Synchronizer, cluster, log_path):
                                    dyna_decrese_counter=FLAGS.Dyna_decrese_counter)
 
     print("Parameter server: waiting for cluster connection...")
-    sess.run(tf.report_uninitialized_variables())
+    sess.run(tf.compat.v1.report_uninitialized_variables())
     print("Parameter server: cluster ready!")
 
     print("Parameter server: initializing variables...")

@@ -10,7 +10,7 @@ IN_CHANNELS = 12
 def reset_graph():
   if 'sess' in globals() and sess:
     sess.close()
-  tf.reset_default_graph()
+  tf.compat.v1.reset_default_graph()
 
 class ConvVAE(object):
   def __init__(self, z_size=32, batch_size=1, learning_rate=0.0001, kl_tolerance=0.5, is_training=False, reuse=False, gpu_mode=False):
@@ -20,13 +20,13 @@ class ConvVAE(object):
     self.is_training = is_training
     self.kl_tolerance = kl_tolerance
     self.reuse = reuse
-    with tf.variable_scope('conv_vae', reuse=self.reuse):
+    with tf.compat.v1.variable_scope('conv_vae', reuse=self.reuse):
       if not gpu_mode:
         with tf.device('/cpu:0'):
-          tf.logging.info('Model using cpu.')
+          tf.compat.v1.logging.info('Model using cpu.')
           self._build_graph()
       else:
-        tf.logging.info('Model using gpu.')
+        tf.compat.v1.logging.info('Model using gpu.')
         self._build_graph()
     self._init_session()
 
@@ -34,29 +34,29 @@ class ConvVAE(object):
     self.g = tf.Graph()
     with self.g.as_default():
 
-      self.x = tf.placeholder(tf.float32, shape=[None, 64, 64, IN_CHANNELS])
+      self.x = tf.compat.v1.placeholder(tf.float32, shape=[None, 64, 64, IN_CHANNELS])
 
       # Encoder
-      h = tf.layers.conv2d(self.x, 32, 4, strides=2, activation=tf.nn.relu, name="enc_conv1")
-      h = tf.layers.conv2d(h, 64, 4, strides=2, activation=tf.nn.relu, name="enc_conv2")
-      h = tf.layers.conv2d(h, 128, 4, strides=2, activation=tf.nn.relu, name="enc_conv3")
-      h = tf.layers.conv2d(h, 256, 4, strides=2, activation=tf.nn.relu, name="enc_conv4")
+      h = tf.compat.v1.layers.conv2d(self.x, 32, 4, strides=2, activation=tf.nn.relu, name="enc_conv1")
+      h = tf.compat.v1.layers.conv2d(h, 64, 4, strides=2, activation=tf.nn.relu, name="enc_conv2")
+      h = tf.compat.v1.layers.conv2d(h, 128, 4, strides=2, activation=tf.nn.relu, name="enc_conv3")
+      h = tf.compat.v1.layers.conv2d(h, 256, 4, strides=2, activation=tf.nn.relu, name="enc_conv4")
       h = tf.reshape(h, [-1, 2*2*256])
 
       # VAE
-      self.mu = tf.layers.dense(h, self.z_size, name="enc_fc_mu")
-      self.logvar = tf.layers.dense(h, self.z_size, name="enc_fc_log_var")
+      self.mu = tf.compat.v1.layers.dense(h, self.z_size, name="enc_fc_mu")
+      self.logvar = tf.compat.v1.layers.dense(h, self.z_size, name="enc_fc_log_var")
       self.sigma = tf.exp(self.logvar / 2.0)
-      self.epsilon = tf.random_normal([self.batch_size, self.z_size])
+      self.epsilon = tf.random.normal([self.batch_size, self.z_size])
       self.z = self.mu + self.sigma * self.epsilon
 
       # Decoder
-      h = tf.layers.dense(self.z, 4*256, name="dec_fc")
+      h = tf.compat.v1.layers.dense(self.z, 4*256, name="dec_fc")
       h = tf.reshape(h, [-1, 1, 1, 4*256])
-      h = tf.layers.conv2d_transpose(h, 128, 5, strides=2, activation=tf.nn.relu, name="dec_deconv1")
-      h = tf.layers.conv2d_transpose(h, 64, 5, strides=2, activation=tf.nn.relu, name="dec_deconv2")
-      h = tf.layers.conv2d_transpose(h, 32, 6, strides=2, activation=tf.nn.relu, name="dec_deconv3")
-      self.y = tf.layers.conv2d_transpose(h, IN_CHANNELS, 6, strides=2, activation=tf.nn.sigmoid, name="dec_deconv4")
+      h = tf.compat.v1.layers.conv2d_transpose(h, 128, 5, strides=2, activation=tf.nn.relu, name="dec_deconv1")
+      h = tf.compat.v1.layers.conv2d_transpose(h, 64, 5, strides=2, activation=tf.nn.relu, name="dec_deconv2")
+      h = tf.compat.v1.layers.conv2d_transpose(h, 32, 6, strides=2, activation=tf.nn.relu, name="dec_deconv3")
+      self.y = tf.compat.v1.layers.conv2d_transpose(h, IN_CHANNELS, 6, strides=2, activation=tf.nn.sigmoid, name="dec_deconv4")
       
       # train ops
       if self.is_training:
@@ -67,14 +67,14 @@ class ConvVAE(object):
         # reconstruction loss
         self.r_loss = tf.reduce_sum(
           tf.square(self.x - self.y),
-          reduction_indices = [1,2,3]
+          axis = [1,2,3]
         )
         self.r_loss = tf.reduce_mean(self.r_loss)
 
         # augmented kl loss per dim
         self.kl_loss = - 0.5 * tf.reduce_sum(
           (1 + self.logvar - tf.square(self.mu) - tf.exp(self.logvar)),
-          reduction_indices = 1
+          axis = 1
         )
         # this line is not work with sc env
         #self.kl_loss = tf.maximum(self.kl_loss, self.kl_tolerance * self.z_size)
@@ -84,28 +84,28 @@ class ConvVAE(object):
         
         # training
         self.lr = tf.Variable(self.learning_rate, trainable=False)
-        self.optimizer = tf.train.AdamOptimizer(self.lr)
+        self.optimizer = tf.compat.v1.train.AdamOptimizer(self.lr)
         grads = self.optimizer.compute_gradients(self.loss) # can potentially clip gradients here.
 
         self.train_op = self.optimizer.apply_gradients(
           grads, global_step=self.global_step, name='train_step')
 
       # initialize vars
-      self.init = tf.global_variables_initializer()
+      self.init = tf.compat.v1.global_variables_initializer()
       
-      t_vars = tf.trainable_variables()
+      t_vars = tf.compat.v1.trainable_variables()
       self.assign_ops = {}
       for var in t_vars:
         #if var.name.startswith('conv_vae'):
         pshape = var.get_shape()
-        pl = tf.placeholder(tf.float32, pshape, var.name[:-2]+'_placeholder')
+        pl = tf.compat.v1.placeholder(tf.float32, pshape, var.name[:-2]+'_placeholder')
         assign_op = var.assign(pl)
         self.assign_ops[var] = (assign_op, pl)
 
 
   def _init_session(self):
     """Launch TensorFlow session and initialize variables"""
-    self.sess = tf.Session(graph=self.g)
+    self.sess = tf.compat.v1.Session(graph=self.g)
     self.sess.run(self.init)
 
   def close_sess(self):
@@ -128,7 +128,7 @@ class ConvVAE(object):
     model_params = []
     model_shapes = []
     with self.g.as_default():
-      t_vars = tf.trainable_variables()
+      t_vars = tf.compat.v1.trainable_variables()
       for var in t_vars:
         #if var.name.startswith('conv_vae'):
         param_name = var.name
@@ -150,7 +150,7 @@ class ConvVAE(object):
 
   def set_model_params(self, params):
     with self.g.as_default():
-      t_vars = tf.trainable_variables()
+      t_vars = tf.compat.v1.trainable_variables()
       idx = 0
       for var in t_vars:
         #if var.name.startswith('conv_vae'):
@@ -181,17 +181,17 @@ class ConvVAE(object):
   def save_model(self, model_save_path):
     sess = self.sess
     with self.g.as_default():
-      saver = tf.train.Saver(tf.global_variables())
+      saver = tf.compat.v1.train.Saver(tf.compat.v1.global_variables())
     checkpoint_path = os.path.join(model_save_path, 'vae')
-    tf.logging.info('saving model %s.', checkpoint_path)
+    tf.compat.v1.logging.info('saving model %s.', checkpoint_path)
     saver.save(sess, checkpoint_path, 0) # just keep one
     
   def load_checkpoint(self, checkpoint_path):
     sess = self.sess
     with self.g.as_default():
-      saver = tf.train.Saver(tf.global_variables())
+      saver = tf.compat.v1.train.Saver(tf.compat.v1.global_variables())
     ckpt = tf.train.get_checkpoint_state(checkpoint_path)
     print('loading model', ckpt.model_checkpoint_path)
-    tf.logging.info('Loading model %s.', ckpt.model_checkpoint_path)
+    tf.compat.v1.logging.info('Loading model %s.', ckpt.model_checkpoint_path)
     saver.restore(sess, ckpt.model_checkpoint_path)
 

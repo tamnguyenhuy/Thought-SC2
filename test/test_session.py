@@ -11,9 +11,9 @@ with tf.Graph().as_default():
  
   res = activation(a, b, c)
  
-  init = tf.initialize_all_variables()
+  init = tf.compat.v1.initialize_all_variables()
  
-  with tf.Session() as sess:
+  with tf.compat.v1.Session() as sess:
 	  # Start running operations on the Graph.
 	  sess.run(init)
 	  hi = sess.run(res)

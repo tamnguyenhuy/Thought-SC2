@@ -200,7 +200,7 @@ class MiniSourceAgent(base_agent.BaseAgent):
         recording_reward = []
 
         np.random.seed(random_generated_int)
-        tf.set_random_seed(random_generated_int)
+        tf.compat.v1.set_random_seed(random_generated_int)
         
         self.safe_action(C._NO_OP, 0, [])
         self.safe_action(C._MOVE_CAMERA, 0, [C.base_camera_pos])

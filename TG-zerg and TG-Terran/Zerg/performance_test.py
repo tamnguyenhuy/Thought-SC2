@@ -228,12 +228,12 @@ def run_thread(agent, Synchronizer):
 
 
 def Worker(index, update_game_num, Synchronizer, cluster, model_path):
-    config = tf.ConfigProto(
+    config = tf.compat.v1.ConfigProto(
         allow_soft_placement=True, log_device_placement=False,
     )
     config.gpu_options.allow_growth = True
-    worker = tf.train.Server(cluster, job_name="worker", task_index=index, config=config)
-    sess = tf.Session(target=worker.target, config=config)
+    worker = tf.distribute.Server(cluster, job_name="worker", task_index=index, config=config)
+    sess = tf.compat.v1.Session(target=worker.target, config=config)
     Net = MiniNetwork(sess=sess, summary_writer=None, rl_training=FLAGS.training,
                       cluster=cluster, index=index, device=DEVICE[index % len(DEVICE)],
                       ppo_load_path=FLAGS.restore_model_path, ppo_save_path=model_path)
@@ -247,10 +247,10 @@ def Worker(index, update_game_num, Synchronizer, cluster, model_path):
         agents.append(agent)
 
     print("Worker %d: waiting for cluster connection..." % index)
-    sess.run(tf.report_uninitialized_variables())
+    sess.run(tf.compat.v1.report_uninitialized_variables())
     print("Worker %d: cluster ready!" % index)
 
-    while len(sess.run(tf.report_uninitialized_variables())):
+    while len(sess.run(tf.compat.v1.report_uninitialized_variables())):
         print("Worker %d: waiting for variable initialization..." % index)
         time.sleep(1)
     print("Worker %d: variables initialized" % index)
@@ -274,15 +274,15 @@ def Worker(index, update_game_num, Synchronizer, cluster, model_path):
 
 
 def Parameter_Server(Synchronizer, cluster, log_path, model_path):
-    config = tf.ConfigProto(
+    config = tf.compat.v1.ConfigProto(
         allow_soft_placement=True, log_device_placement=False,
     )
     config.gpu_options.allow_growth = True
-    server = tf.train.Server(cluster, job_name="ps", task_index=0, config=config)
-    sess = tf.Session(target=server.target, config=config)
+    server = tf.distribute.Server(cluster, job_name="ps", task_index=0, config=config)
+    sess = tf.compat.v1.Session(target=server.target, config=config)
     #Net = HierNetwork(sess=sess, summary_writer=None, rl_training=FLAGS.training)
     #agent = multi_agent.MultiAgent(index=-1, net=Net, restore_model=FLAGS.restore_model, rl_training=FLAGS.training)
-    summary_writer = tf.summary.FileWriter(log_path)
+    summary_writer = tf.compat.v1.summary.FileWriter(log_path)
     Net = MiniNetwork(sess=sess, summary_writer=summary_writer, rl_training=FLAGS.training,
                       cluster=cluster, index=0, device=DEVICE[0 % len(DEVICE)],
                       ppo_load_path=FLAGS.restore_model_path, ppo_save_path=model_path)
@@ -290,7 +290,7 @@ def Parameter_Server(Synchronizer, cluster, log_path, model_path):
     agent = mini_source_agent.SourceAgent(index=-1, net=Net, restore_model=FLAGS.restore_model, rl_training=FLAGS.training)
 
     print("Parameter server: waiting for cluster connection...")
-    sess.run(tf.report_uninitialized_variables())
+    sess.run(tf.compat.v1.report_uninitialized_variables())
     print("Parameter server: cluster ready!")
 
     print("Parameter server: initializing variables...")

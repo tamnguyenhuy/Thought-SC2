@@ -12,7 +12,7 @@ _SIZE_MINI_ACTIONS = 10
 
 class MiniNetwork(object):
 
-    def __init__(self, sess=None, summary_writer=tf.summary.FileWriter("logs/"), rl_training=False,
+    def __init__(self, sess=None, summary_writer=tf.compat.v1.summary.FileWriter("logs/"), rl_training=False,
                  reuse=False, cluster=None, index=0, device='/gpu:0',
                  ppo_load_path=None, ppo_save_path=None):
         self.policy_model_path_load = ppo_load_path + "mini"
@@ -30,11 +30,11 @@ class MiniNetwork(object):
 
         self._create_graph()
 
-        self.rl_saver = tf.train.Saver()
+        self.rl_saver = tf.compat.v1.train.Saver()
         self.summary_writer = summary_writer
 
     def initialize(self):
-        init_op = tf.global_variables_initializer()
+        init_op = tf.compat.v1.global_variables_initializer()
         self.sess.run(init_op)
 
     def reset_old_network(self):
@@ -46,29 +46,29 @@ class MiniNetwork(object):
 
     def _create_graph(self):
         if self.reuse:
-            tf.get_variable_scope().reuse_variables()
-            assert tf.get_variable_scope().reuse
+            tf.compat.v1.get_variable_scope().reuse_variables()
+            assert tf.compat.v1.get_variable_scope().reuse
 
         worker_device = "/job:worker/task:%d" % self.index + self.device
-        with tf.device(tf.train.replica_device_setter(worker_device=worker_device, cluster=self.cluster)):
-            self.results_sum = tf.get_variable(name="results_sum", shape=[], initializer=tf.zeros_initializer)
-            self.game_num = tf.get_variable(name="game_num", shape=[], initializer=tf.zeros_initializer)
+        with tf.device(tf.compat.v1.train.replica_device_setter(worker_device=worker_device, cluster=self.cluster)):
+            self.results_sum = tf.compat.v1.get_variable(name="results_sum", shape=[], initializer=tf.compat.v1.zeros_initializer)
+            self.game_num = tf.compat.v1.get_variable(name="game_num", shape=[], initializer=tf.compat.v1.zeros_initializer)
 
-            self.global_steps = tf.get_variable(name="global_steps", shape=[], initializer=tf.zeros_initializer)
+            self.global_steps = tf.compat.v1.get_variable(name="global_steps", shape=[], initializer=tf.compat.v1.zeros_initializer)
             self.win_rate = self.results_sum / self.game_num
 
-            self.mean_win_rate = tf.summary.scalar('mean_win_rate_dis', self.results_sum / self.game_num)
-            self.merged = tf.summary.merge([self.mean_win_rate])
+            self.mean_win_rate = tf.compat.v1.summary.scalar('mean_win_rate_dis', self.results_sum / self.game_num)
+            self.merged = tf.compat.v1.summary.merge([self.mean_win_rate])
 
             mini_scope = "MiniPolicyNN"
-            with tf.variable_scope(mini_scope):
+            with tf.compat.v1.variable_scope(mini_scope):
                 ob_space = _SIZE_MINI_INPUT
                 act_space_array = _SIZE_MINI_ACTIONS
                 self.policy = Policy_net('policy', self.sess, ob_space, act_space_array)
                 self.policy_old = Policy_net('old_policy', self.sess, ob_space, act_space_array)
                 self.policy_ppo = PPOTrain('PPO', self.sess, self.policy, self.policy_old, lr=P.mini_lr, epoch_num=P.mini_epoch_num)
-            var_list = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
-            self.policy_saver = tf.train.Saver(var_list=var_list)
+            var_list = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES)
+            self.policy_saver = tf.compat.v1.train.Saver(var_list=var_list)
 
     def Update_result(self, result_list):
         win = 0

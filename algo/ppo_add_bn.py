@@ -25,13 +25,13 @@ class Policy_net:
         self.activation = activation
         self.use_sep_net = use_sep_net
 
-        self.obs = tf.placeholder(dtype=tf.float32, shape=[None, ob_space], name='obs')
+        self.obs = tf.compat.v1.placeholder(dtype=tf.float32, shape=[None, ob_space], name='obs')
 
         if add_ob_space > 0:
-            self.obs_add = tf.placeholder(dtype=tf.float32, shape=[None, add_ob_space], name='obs_add')
+            self.obs_add = tf.compat.v1.placeholder(dtype=tf.float32, shape=[None, add_ob_space], name='obs_add')
             self.use_add_obs = True
         else:
-            self.obs_add = tf.placeholder(dtype=tf.float32, shape=[None, 1], name='obs_add')
+            self.obs_add = tf.compat.v1.placeholder(dtype=tf.float32, shape=[None, 1], name='obs_add')
             self.use_add_obs = False
 
         self.act_space_array = act_space_array
@@ -52,10 +52,10 @@ class Policy_net:
     def sep_policy_value_net(self, name, hidden_units=64, 
             activation=tf.nn.relu, freeze_head=False, initial_type='original', norm=True, is_training=True, reuse=False):
         
-        with tf.variable_scope(name, reuse=reuse):
+        with tf.compat.v1.variable_scope(name, reuse=reuse):
 
-            with tf.variable_scope('policy_net'):
-                with tf.variable_scope('controller'):              
+            with tf.compat.v1.variable_scope('policy_net'):
+                with tf.compat.v1.variable_scope('controller'):              
                     layer_1 = layer.dense_layer(self.obs, hidden_units, "DenseLayer1", norm=norm, is_training=is_training, 
                         func=activation, initial_type=initial_type, trainable=not freeze_head)
                     self.layer_2 = layer.dense_layer(layer_1, hidden_units, "DenseLayer2", norm=norm, is_training=is_training, 
@@ -72,8 +72,8 @@ class Policy_net:
                             self.layer_4 = self.layer_2 * self.attention_weight
 
                         elif self.weight_type == 'AdaptiveWeight':
-                            self.adaptive_weight = tf.get_variable(name="AdaptiveWeight", shape=[hidden_units], 
-                                initializer=tf.zeros_initializer(), trainable=True)                    
+                            self.adaptive_weight = tf.compat.v1.get_variable(name="AdaptiveWeight", shape=[hidden_units], 
+                                initializer=tf.compat.v1.zeros_initializer(), trainable=True)                    
                             self.layer_4 = (1 - self.adaptive_weight) * self.layer_2 + self.adaptive_weight * self.layer_3
 
                         elif self.weight_type == 'AddWeight':
@@ -89,10 +89,10 @@ class Policy_net:
                         is_training=is_training, initial_type=initial_type,
                         func=tf.nn.softmax)
 
-                    act = tf.multinomial(tf.log(probs), num_samples=1)
+                    act = tf.random.categorical(tf.math.log(probs), num_samples=1)
                     act = tf.reshape(act, shape=[-1])
 
-            with tf.variable_scope('value_net'):
+            with tf.compat.v1.variable_scope('value_net'):
                 layer_1 = layer.dense_layer(self.obs, hidden_units, "DenseLayer1", norm=norm, is_training=is_training, 
                     func=activation, initial_type=initial_type, trainable=not freeze_head)
                 layer_2 = layer.dense_layer(layer_1, hidden_units, "DenseLayer2", norm=norm, is_training=is_training, 
@@ -100,7 +100,7 @@ class Policy_net:
 
                 v_preds = layer.dense_layer(layer_2, 1, "DenseLayer4", initial_type=initial_type, is_training=is_training, func=None)
         
-            self.scope = tf.get_variable_scope().name
+            self.scope = tf.compat.v1.get_variable_scope().name
 
         return probs, act, v_preds
 
@@ -108,9 +108,9 @@ class Policy_net:
     def dual_policy_value_net(self, name, hidden_units=64, 
         activation=tf.nn.relu, freeze_head=False, initial_type='original', norm=True, is_training=True, reuse=False):
         
-        with tf.variable_scope(name, reuse=reuse):
-            with tf.variable_scope('policy_net'):
-                with tf.variable_scope('controller'):              
+        with tf.compat.v1.variable_scope(name, reuse=reuse):
+            with tf.compat.v1.variable_scope('policy_net'):
+                with tf.compat.v1.variable_scope('controller'):              
                     layer_1 = layer.dense_layer(self.obs, hidden_units, "DenseLayer1", norm=norm, is_training=is_training, 
                         func=activation, initial_type=initial_type, trainable=not freeze_head)
                     layer_2 = layer.dense_layer(layer_1, hidden_units, "DenseLayer2", norm=norm, is_training=is_training, 
@@ -127,8 +127,8 @@ class Policy_net:
                             self.layer_4 = self.layer_2 * self.attention_weight
 
                         elif self.weight_type == 'AdaptiveWeight':
-                            self.adaptive_weight = tf.get_variable(name="AdaptiveWeight", shape=[hidden_units], 
-                                initializer=tf.zeros_initializer(), trainable=True)                    
+                            self.adaptive_weight = tf.compat.v1.get_variable(name="AdaptiveWeight", shape=[hidden_units], 
+                                initializer=tf.compat.v1.zeros_initializer(), trainable=True)                    
                             self.layer_4 = (1 - self.adaptive_weight) * self.layer_2 + self.adaptive_weight * self.layer_3
 
                         elif self.weight_type == 'AddWeight':
@@ -144,12 +144,12 @@ class Policy_net:
                         is_training=is_training, initial_type=initial_type,
                         func=tf.nn.softmax)
 
-                    act = tf.multinomial(tf.log(probs), num_samples=1)
+                    act = tf.random.categorical(tf.math.log(probs), num_samples=1)
                     act = tf.reshape(act, shape=[-1])
 
                     v_preds = layer.dense_layer(layer_4, 1, "DenseLayer4", initial_type=initial_type, is_training=is_training, func=None)
         
-            self.scope = tf.get_variable_scope().name
+            self.scope = tf.compat.v1.get_variable_scope().name
 
         return probs, act, v_preds
         
@@ -199,10 +199,10 @@ class Policy_net:
         return v_preds
 
     def get_variables(self):
-        return tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, self.scope)
+        return tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.GLOBAL_VARIABLES, self.scope)
 
     def get_trainable_variables(self):
-        return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, self.scope)
+        return tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES, self.scope)
 
 
 class PPOTrain:
@@ -241,7 +241,7 @@ class PPOTrain:
         self.grad_summ_summary = None
         self.print_gradient_step = 10
 
-        with tf.variable_scope(name):
+        with tf.compat.v1.variable_scope(name):
             pi_trainable = self.Policy.get_trainable_variables()
             old_pi_trainable = self.Old_Policy.get_trainable_variables()
 
@@ -257,23 +257,23 @@ class PPOTrain:
                 old_pi = old_pi_trainable
 
             # assign_operations for policy parameter values to old policy parameters
-            with tf.variable_scope('assign_op'):
+            with tf.compat.v1.variable_scope('assign_op'):
                 self.assign_ops = []
                 #for v_old, v in zip(old_pi_trainable, pi_trainable):
                 for v_old, v in zip(old_pi, pi):
-                    self.assign_ops.append(tf.assign(v_old, v))
+                    self.assign_ops.append(tf.compat.v1.assign(v_old, v))
 
             # inputs for train_op
-            with tf.variable_scope('train_inp'):
-                self.actions = tf.placeholder(dtype=tf.int32, shape=[None], name='actions')
-                self.rewards = tf.placeholder(dtype=tf.float32, shape=[None], name='rewards')
-                self.v_preds_next = tf.placeholder(dtype=tf.float32, shape=[None], name='v_preds_next')
-                self.gaes = tf.placeholder(dtype=tf.float32, shape=[None], name='gaes')
-                self.returns = tf.placeholder(dtype=tf.float32, shape=[None], name='returns')
+            with tf.compat.v1.variable_scope('train_inp'):
+                self.actions = tf.compat.v1.placeholder(dtype=tf.int32, shape=[None], name='actions')
+                self.rewards = tf.compat.v1.placeholder(dtype=tf.float32, shape=[None], name='rewards')
+                self.v_preds_next = tf.compat.v1.placeholder(dtype=tf.float32, shape=[None], name='v_preds_next')
+                self.gaes = tf.compat.v1.placeholder(dtype=tf.float32, shape=[None], name='gaes')
+                self.returns = tf.compat.v1.placeholder(dtype=tf.float32, shape=[None], name='returns')
 
                 # define distribute variable
-                self.returns_sum = tf.get_variable(name="returns_sum", shape=[], initializer=tf.zeros_initializer)
-                self.proc_num = tf.get_variable(name="proc_num", shape=[], initializer=tf.zeros_initializer)
+                self.returns_sum = tf.compat.v1.get_variable(name="returns_sum", shape=[], initializer=tf.compat.v1.zeros_initializer)
+                self.proc_num = tf.compat.v1.get_variable(name="proc_num", shape=[], initializer=tf.compat.v1.zeros_initializer)
 
             act_probs = self.Policy.train_probs
             act_probs_old = self.Old_Policy.train_probs
@@ -290,11 +290,11 @@ class PPOTrain:
 
             act_probs_old = act_probs_old
 
-            with tf.variable_scope('loss'):
+            with tf.compat.v1.variable_scope('loss'):
                 # construct computation graph for loss_clip
                 # ratios = tf.divide(act_probs, act_probs_old)
-                ratios = tf.exp(tf.log(tf.clip_by_value(act_probs, 1e-10, 1.0))
-                                - tf.log(tf.clip_by_value(act_probs_old, 1e-10, 1.0)))
+                ratios = tf.exp(tf.math.log(tf.clip_by_value(act_probs, 1e-10, 1.0))
+                                - tf.math.log(tf.clip_by_value(act_probs_old, 1e-10, 1.0)))
                 clipped_ratios = tf.clip_by_value(ratios, clip_value_min=1 - self.clip_value,
                                                   clip_value_max=1 + self.clip_value)
                 loss_clip = tf.minimum(tf.multiply(self.gaes, ratios), tf.multiply(self.gaes, clipped_ratios))
@@ -302,28 +302,28 @@ class PPOTrain:
 
                 # construct computation graph for loss of entropy bonus
                 entropy = -tf.reduce_sum(self.Policy.train_probs *
-                                              tf.log(tf.clip_by_value(self.Policy.train_probs, 1e-10, 1.0)), axis=1)
+                                              tf.math.log(tf.clip_by_value(self.Policy.train_probs, 1e-10, 1.0)), axis=1)
                 entropy = entropy
                 self.entropy = tf.reduce_mean(entropy, axis=0)  # mean of entropy of pi(obs)
 
                 # construct computation graph for loss of value function
                 v_preds = self.Policy.train_v_preds
                 if P.use_return_error:
-                    loss_vf = tf.squared_difference(self.returns, v_preds)
+                    loss_vf = tf.math.squared_difference(self.returns, v_preds)
                 else:
-                    loss_vf = tf.squared_difference(self.rewards + self.gamma * self.v_preds_next, v_preds)
+                    loss_vf = tf.math.squared_difference(self.rewards + self.gamma * self.v_preds_next, v_preds)
                 self.loss_vf = tf.reduce_mean(loss_vf)
 
                 # construct computation graph for loss
                 self.total_loss = self.loss_clip + self.c_1 * self.loss_vf - self.c_2 * self.entropy
-                self.sum_mean_returns = tf.summary.scalar('mean_return_dis', self.returns_sum / (self.proc_num + 0.0001))
+                self.sum_mean_returns = tf.compat.v1.summary.scalar('mean_return_dis', self.returns_sum / (self.proc_num + 0.0001))
 
-            self.merged_dis = tf.summary.merge([self.sum_mean_returns])
-            optimizer = tf.train.AdamOptimizer(learning_rate=self.adam_lr, epsilon=self.adam_epsilon)
+            self.merged_dis = tf.compat.v1.summary.merge([self.sum_mean_returns])
+            optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=self.adam_lr, epsilon=self.adam_epsilon)
             self.gradients = optimizer.compute_gradients(self.total_loss, var_list=pi_trainable)
 
             # plot the gradients
-            self.grad_summ_op = tf.summary.merge([tf.summary.histogram("%s-grad" % g[1].name.replace(':','_'), g[0]) for g in self.gradients
+            self.grad_summ_op = tf.compat.v1.summary.merge([tf.compat.v1.summary.histogram("%s-grad" % g[1].name.replace(':','_'), g[0]) for g in self.gradients
                 if 'batch_norm' not in g[1].name.split('/')])
 
             self.train_op = optimizer.minimize(self.total_loss, var_list=pi_trainable)

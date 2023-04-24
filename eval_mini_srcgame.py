@@ -62,8 +62,7 @@ flags.DEFINE_bool("profile", False, "Whether to turn on code profiling.")
 flags.DEFINE_bool("trace", False, "Whether to trace the code execution.")
 flags.DEFINE_bool("save_replay", False, "Whether to replays_save a replay at the end.")
 flags.DEFINE_string("replay_dir", "multi-agent/", "dir of replay to replays_save.")
-
-flags.DEFINE_string("restore_model_path", "./model/20200806-151958_source/", "path for restore model")
+flags.DEFINE_string("restore_model_path", "./model/20200915-153408_source/", "path for restore model")
 flags.DEFINE_bool("restore_model", True, "Whether to restore old model")
 
 flags.DEFINE_integer("parallel", 10, "How many processes to run in parallel.")
@@ -209,12 +208,12 @@ def run_thread(agent, game_num, Synchronizer, difficulty):
 
 
 def Worker(index, update_game_num, Synchronizer, cluster, model_path):
-    config = tf.ConfigProto(
+    config = tf.compat.v1.ConfigProto(
         allow_soft_placement=True, log_device_placement=False,
     )
     config.gpu_options.allow_growth = True
-    worker = tf.train.Server(cluster, job_name="worker", task_index=index, config=config)
-    sess = tf.Session(target=worker.target, config=config)
+    worker = tf.distribute.Server(cluster, job_name="worker", task_index=index, config=config)
+    sess = tf.compat.v1.Session(target=worker.target, config=config)
 
     Net = MiniNetwork(sess=sess, summary_writer=None, rl_training=FLAGS.training,
                       cluster=cluster, index=index, device=DEVICE[index % len(DEVICE)],
@@ -229,10 +228,10 @@ def Worker(index, update_game_num, Synchronizer, cluster, model_path):
         agents.append(agent)
 
     print("Worker %d: waiting for cluster connection..." % index)
-    sess.run(tf.report_uninitialized_variables())
+    sess.run(tf.compat.v1.report_uninitialized_variables())
     print("Worker %d: cluster ready!" % index)
 
-    while len(sess.run(tf.report_uninitialized_variables())):
+    while len(sess.run(tf.compat.v1.report_uninitialized_variables())):
         print("Worker %d: waiting for variable initialization..." % index)
         time.sleep(1)
     print("Worker %d: variables initialized" % index)
@@ -258,13 +257,13 @@ def Worker(index, update_game_num, Synchronizer, cluster, model_path):
 
 
 def Parameter_Server(Synchronizer, cluster, log_path, model_path, procs):
-    config = tf.ConfigProto(
+    config = tf.compat.v1.ConfigProto(
         allow_soft_placement=True, log_device_placement=False,
     )
     config.gpu_options.allow_growth = True
-    server = tf.train.Server(cluster, job_name="ps", task_index=0, config=config)
-    sess = tf.Session(target=server.target, config=config)
-    summary_writer = tf.summary.FileWriter(log_path)
+    server = tf.distribute.Server(cluster, job_name="ps", task_index=0, config=config)
+    sess = tf.compat.v1.Session(target=server.target, config=config)
+    summary_writer = tf.summary.create_file_writer(log_path)
     Net = MiniNetwork(sess=sess, summary_writer=summary_writer, rl_training=FLAGS.training,
                       cluster=cluster, index=0, device=DEVICE[0 % len(DEVICE)],
                       ppo_load_path=FLAGS.restore_model_path, ppo_save_path=model_path)
@@ -272,7 +271,7 @@ def Parameter_Server(Synchronizer, cluster, log_path, model_path, procs):
     agent = mini_source_agent.MiniSourceAgent(index=-1, net=Net, restore_model=FLAGS.restore_model, rl_training=FLAGS.training)
 
     print("Parameter server: waiting for cluster connection...")
-    sess.run(tf.report_uninitialized_variables())
+    sess.run(tf.compat.v1.report_uninitialized_variables())
     print("Parameter server: cluster ready!")
 
     print("Parameter server: initializing variables...")

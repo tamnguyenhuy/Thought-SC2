@@ -40,78 +40,78 @@ class MappingNetwork(object):
 
         self.reuse = reuse
         self.sess = sess
-        with tf.variable_scope(name):
-            self.is_training = tf.placeholder(dtype=tf.bool, shape=[], name="is_training")
+        with tf.compat.v1.variable_scope(name):
+            self.is_training = tf.compat.v1.placeholder(dtype=tf.bool, shape=[], name="is_training")
             self._create_graph()
-            self.scope = tf.get_variable_scope().name
+            self.scope = tf.compat.v1.get_variable_scope().name
 
-        self.summary = tf.Summary()
-        self.summary_op = tf.summary.merge_all()
+        self.summary = tf.compat.v1.Summary()
+        self.summary_op = tf.compat.v1.summary.merge_all()
 
         log_path = save_path.replace("model", "logs")
-        self.summary_writer = tf.summary.FileWriter(log_path, self.sess.graph)
+        self.summary_writer = tf.compat.v1.summary.FileWriter(log_path, self.sess.graph)
         self._define_sl_saver()
 
     def initialize(self):
-        init_op = tf.global_variables_initializer()
+        init_op = tf.compat.v1.global_variables_initializer()
         self.sess.run(init_op)
 
     def _define_sl_saver(self):
-        self.func_var_list_save = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.scope)
-        self.func_saver = tf.train.Saver(var_list=self.func_var_list_save)
+        self.func_var_list_save = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.GLOBAL_VARIABLES, scope=self.scope)
+        self.func_saver = tf.compat.v1.train.Saver(var_list=self.func_var_list_save)
 
     def _create_graph(self):
 
         if self.reuse:
-            tf.get_variable_scope().reuse_variables()
-            assert tf.get_variable_scope().reuse
+            tf.compat.v1.get_variable_scope().reuse_variables()
+            assert tf.compat.v1.get_variable_scope().reuse
 
-        with tf.name_scope("Input"):
+        with tf.compat.v1.name_scope("Input"):
             # func net:
-            self.source_state = tf.placeholder(dtype=tf.float32, shape=[None, C._SIZE_SOURCE_INPUT], name="source_state")
-            self.mini_state = tf.placeholder(dtype=tf.float32, shape=[None, C._SIZE_MINI_INPUT], name="mini_state")
+            self.source_state = tf.compat.v1.placeholder(dtype=tf.float32, shape=[None, C._SIZE_SOURCE_INPUT], name="source_state")
+            self.mini_state = tf.compat.v1.placeholder(dtype=tf.float32, shape=[None, C._SIZE_MINI_INPUT], name="mini_state")
 
             self.func_label = tf.concat([self.mini_state], axis=1, name="func_label")
-            self.func_lr_ph = tf.placeholder(dtype=tf.float32, shape=[], name="func_lr")
+            self.func_lr_ph = tf.compat.v1.placeholder(dtype=tf.float32, shape=[], name="func_lr")
 
-        with tf.name_scope("Network"):
+        with tf.compat.v1.name_scope("Network"):
             self.func_predict, self.net_scope = self._func_net(self.source_state)
             print("self.net_scope:", self.net_scope)
 
         if self.sl_training:
-            with tf.name_scope("SL_loss"):
+            with tf.compat.v1.name_scope("SL_loss"):
                 self._define_sl_loss()
 
     def _define_sl_loss(self):
         # func loss
-        self.func_var_list_train = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=self.net_scope)
+        self.func_var_list_train = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES, scope=self.net_scope)
         # print(self.func_var_list_train)
 
-        with tf.name_scope("Tech_loss"):
-            self.loss = tf.reduce_mean(tf.squared_difference(self.func_predict, self.func_label))
+        with tf.compat.v1.name_scope("Tech_loss"):
+            self.loss = tf.reduce_mean(tf.math.squared_difference(self.func_predict, self.func_label))
             #self.regularizer = tf.nn.l2_loss(self.func_var_list_train)
             self.regularizer = tf.add_n([tf.nn.l2_loss(v) for v in self.func_var_list_train
                                          if 'bias' not in v.name])
             self.beta = 0.01
             self.func_loss = self.loss + self.beta * self.regularizer
-            update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS, scope=self.net_scope)
+            update_ops = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.UPDATE_OPS, scope=self.net_scope)
 
             with tf.control_dependencies(update_ops):
-                self.func_train_step = tf.train.AdamOptimizer(self.func_lr_ph).minimize(
+                self.func_train_step = tf.compat.v1.train.AdamOptimizer(self.func_lr_ph).minimize(
                     self.func_loss, var_list=self.func_var_list_train)
 
-            with tf.name_scope("summary_func"):
-                self.func_loss_sum = tf.summary.scalar('func_loss', self.func_loss)
-                self.summary_func_op = tf.summary.merge([self.func_loss_sum])
+            with tf.compat.v1.name_scope("summary_func"):
+                self.func_loss_sum = tf.compat.v1.summary.scalar('func_loss', self.func_loss)
+                self.summary_func_op = tf.compat.v1.summary.merge([self.func_loss_sum])
 
     def _func_net(self, data, trainable=True):
-        with tf.variable_scope("Func_net"):
+        with tf.compat.v1.variable_scope("Func_net"):
             # if self.use_norm == True:
             #    data = layer.batch_norm(data, self.is_training, 'BN')
             d1 = layer.dense_layer(data, 256, "DenseLayer1", is_training=self.is_training, trainable=trainable, norm=self.use_norm)
             d2 = layer.dense_layer(d1, 128, "DenseLayer2", is_training=self.is_training, trainable=trainable, norm=self.use_norm)
             dout = layer.dense_layer(d2, C._SIZE_MINI_INPUT, "DenseLayerOut", func=None, is_training=self.is_training, trainable=trainable, norm=self.use_norm)
-            scope = tf.get_variable_scope().name
+            scope = tf.compat.v1.get_variable_scope().name
         return dout, scope
 
     def transform_state(self, state):
@@ -207,8 +207,8 @@ class MappingNetwork(object):
 
                         val_loss = sum(val_mean_loss) / float(len(val_mean_loss))
                         print("func: epoch: %d/%d, val_mean_loss: " % (iter_index + 1, iter_num), val_loss)
-                        summary = tf.Summary(value=[
-                            tf.Summary.Value(tag="val_loss", simple_value=val_loss),
+                        summary = tf.compat.v1.Summary(value=[
+                            tf.compat.v1.Summary.Value(tag="val_loss", simple_value=val_loss),
                         ])
                         self.summary_writer.add_summary(summary, overall_step)
 

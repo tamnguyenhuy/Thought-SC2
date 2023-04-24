@@ -11,7 +11,7 @@ from mapping_network import MappingNetwork
 
 class SourceNetwork(object):
 
-    def __init__(self, sess=None, summary_writer=tf.summary.FileWriter("logs/"), rl_training=False,
+    def __init__(self, sess=None, summary_writer=tf.compat.v1.summary.FileWriter("logs/"), rl_training=False,
                  reuse=False, cluster=None, index=0, device='/gpu:0',
                  load_path=None, save_path=None):
         self.policy_model_path_load = load_path + "ppo"
@@ -32,11 +32,11 @@ class SourceNetwork(object):
 
         self._create_graph()
 
-        self.rl_saver = tf.train.Saver()
+        self.rl_saver = tf.compat.v1.train.Saver()
         self.summary_writer = summary_writer
 
     def initialize(self):
-        init_op = tf.global_variables_initializer()
+        init_op = tf.compat.v1.global_variables_initializer()
         self.sess.run(init_op)
 
     def reset_old_network(self):
@@ -48,20 +48,20 @@ class SourceNetwork(object):
 
     def _create_graph(self):
         if self.reuse:
-            tf.get_variable_scope().reuse_variables()
-            assert tf.get_variable_scope().reuse
+            tf.compat.v1.get_variable_scope().reuse_variables()
+            assert tf.compat.v1.get_variable_scope().reuse
 
         worker_device = "/job:worker/task:%d" % self.index + self.device
-        with tf.device(tf.train.replica_device_setter(worker_device=worker_device, cluster=self.cluster)):
+        with tf.device(tf.compat.v1.train.replica_device_setter(worker_device=worker_device, cluster=self.cluster)):
             source_scope = "SourceNN"
-            with tf.variable_scope(source_scope):
-                self.results_sum = tf.get_variable(name="results_sum", shape=[], initializer=tf.zeros_initializer)
-                self.game_num = tf.get_variable(name="game_num", shape=[], initializer=tf.zeros_initializer)
+            with tf.compat.v1.variable_scope(source_scope):
+                self.results_sum = tf.compat.v1.get_variable(name="results_sum", shape=[], initializer=tf.compat.v1.zeros_initializer)
+                self.game_num = tf.compat.v1.get_variable(name="game_num", shape=[], initializer=tf.compat.v1.zeros_initializer)
 
-                self.global_steps = tf.get_variable(name="global_steps", shape=[], initializer=tf.zeros_initializer)
+                self.global_steps = tf.compat.v1.get_variable(name="global_steps", shape=[], initializer=tf.compat.v1.zeros_initializer)
 
-                self.mean_win_rate = tf.summary.scalar('mean_win_rate_dis', self.results_sum / self.game_num)
-                self.merged = tf.summary.merge([self.mean_win_rate])
+                self.mean_win_rate = tf.compat.v1.summary.scalar('mean_win_rate_dis', self.results_sum / self.game_num)
+                self.merged = tf.compat.v1.summary.merge([self.mean_win_rate])
 
                 ob_space = C._SIZE_MINI_INPUT
                 act_space_array = C._SIZE_MINI_ACTIONS
@@ -70,8 +70,8 @@ class SourceNetwork(object):
                 self.policy_ppo = PPOTrain('PPO', self.sess, self.policy, self.policy_old, epoch_num=5)
                 self.mapping = MappingNetwork('mapping', self.sess, load_path=self.mapping_load_path, save_path=self.mapping_save_path)
 
-            var_list = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=source_scope)
-            self.policy_saver = tf.train.Saver(var_list=var_list)
+            var_list = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES, scope=source_scope)
+            self.policy_saver = tf.compat.v1.train.Saver(var_list=var_list)
 
     def Update_result(self, result_list):
         self.sess.run(self.results_sum.assign_add(result_list.count(1)))

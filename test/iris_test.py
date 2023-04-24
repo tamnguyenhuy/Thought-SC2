@@ -51,7 +51,7 @@ classifier = tf.estimator.DNNClassifier(
     n_classes=3, 
     dropout=None,
     warm_start_from=None,
-    batch_norm=False)
+    batch_norm=False, loss_reduction=tf.keras.losses.Reduction.SUM)
 
 
 classifier.train(

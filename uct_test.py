@@ -11,11 +11,11 @@ from prototype.hier_network import HierNetwork
 
 def test(is_restore_policy=True, is_restore_dynamic=True):
     # train model
-    config = tf.ConfigProto(
+    config = tf.compat.v1.ConfigProto(
         allow_soft_placement=True, log_device_placement=False,
     )
     config.gpu_options.allow_growth = True
-    sess = tf.Session(config=config)
+    sess = tf.compat.v1.Session(config=config)
 
     hier_net = HierNetwork(sess, policy_path='./model/20181217-154646/probe')
     hier_net.initialize()

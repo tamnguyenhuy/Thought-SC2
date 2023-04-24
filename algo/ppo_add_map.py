@@ -20,13 +20,13 @@ class Policy_net:
         self.add_weight = 0.2
         self.map_width = 32 if P.use_small_map else 64
         self.map_channel = 10
-        with tf.variable_scope(name):
-            self.obs = tf.placeholder(dtype=tf.float32, shape=[None, ob_space], name='obs')
-            self.obs_add = tf.placeholder(dtype=tf.float32, shape=[None, add_ob_space], name='obs_add')
-            self.obs_map = tf.placeholder(dtype=tf.float32, shape=[None, self.map_width, self.map_width, self.map_channel], name='obs_map')
+        with tf.compat.v1.variable_scope(name):
+            self.obs = tf.compat.v1.placeholder(dtype=tf.float32, shape=[None, ob_space], name='obs')
+            self.obs_add = tf.compat.v1.placeholder(dtype=tf.float32, shape=[None, add_ob_space], name='obs_add')
+            self.obs_map = tf.compat.v1.placeholder(dtype=tf.float32, shape=[None, self.map_width, self.map_width, self.map_channel], name='obs_map')
 
-            with tf.variable_scope('policy_net'):
-                with tf.variable_scope('controller'):              
+            with tf.compat.v1.variable_scope('policy_net'):
+                with tf.compat.v1.variable_scope('controller'):              
                     layer_1 = layer.dense_layer(self.obs, 64, "DenseLayer1", func=activation, trainable=not freeze_head)
                     self.layer_2 = layer.dense_layer(layer_1, 64, "DenseLayer2", func=activation, trainable=not freeze_head)
 
@@ -43,10 +43,10 @@ class Policy_net:
                     self.layer_5 = (1. - self.add_weight) * self.layer_2 + self.add_weight / 2. * self.layer_3 + self.add_weight / 2. * self.layer_4
                     self.tech_probs = layer.output_layer(self.layer_5, act_space_array, add_act_space, "tech_output", func=tf.nn.softmax)
 
-                    self.tech_act = tf.multinomial(tf.log(self.tech_probs), num_samples=1)
+                    self.tech_act = tf.random.categorical(tf.math.log(self.tech_probs), num_samples=1)
                     self.tech_act = tf.reshape(self.tech_act, shape=[-1])
 
-            with tf.variable_scope('value_net'):
+            with tf.compat.v1.variable_scope('value_net'):
                 layer_1 = layer.dense_layer(self.obs, 64, "DenseLayer1", func=activation, trainable=not freeze_head)
                 layer_2 = layer.dense_layer(layer_1, 64, "DenseLayer2", func=activation, trainable=not freeze_head)
 
@@ -56,7 +56,7 @@ class Policy_net:
                 self.v_preds = layer.dense_layer(layer_2, 1, "DenseLayer4", func=None)
                 #self.v_preds = layer.dense_layer(layer_2, 1, "DenseLayer4_add", func=None)
 
-            self.scope = tf.get_variable_scope().name
+            self.scope = tf.compat.v1.get_variable_scope().name
 
     def get_action(self, obs, obs_add, obs_map, verbose=True):
         tech_act_probs, tech_act, v_preds \
@@ -104,16 +104,16 @@ class Policy_net:
         return v_preds
 
     def get_variables(self):
-        return tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, self.scope)
+        return tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.GLOBAL_VARIABLES, self.scope)
 
     def get_map_variables(self):
-        return tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, self.map_variable_scope)
+        return tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.GLOBAL_VARIABLES, self.map_variable_scope)
 
     def get_trainable_variables(self):
-        return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, self.scope)
+        return tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES, self.scope)
 
     def get_map_trainable_variables(self):
-        return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, self.map_variable_scope)
+        return tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES, self.map_variable_scope)
 
 class PPOTrain:
 
@@ -147,27 +147,27 @@ class PPOTrain:
         self.update_count = 0
         self.restore_model = P.restore_model
 
-        with tf.variable_scope(name):
+        with tf.compat.v1.variable_scope(name):
             pi_trainable = self.Policy.get_trainable_variables()
             old_pi_trainable = self.Old_Policy.get_trainable_variables()
 
             # assign_operations for policy parameter values to old policy parameters
-            with tf.variable_scope('assign_op'):
+            with tf.compat.v1.variable_scope('assign_op'):
                 self.assign_ops = []
                 for v_old, v in zip(old_pi_trainable, pi_trainable):
-                    self.assign_ops.append(tf.assign(v_old, v))
+                    self.assign_ops.append(tf.compat.v1.assign(v_old, v))
 
             # inputs for train_op
-            with tf.variable_scope('train_inp'):
-                self.tech_actions = tf.placeholder(dtype=tf.int32, shape=[None], name='tech_actions')
-                self.rewards = tf.placeholder(dtype=tf.float32, shape=[None], name='rewards')
-                self.v_preds_next = tf.placeholder(dtype=tf.float32, shape=[None], name='v_preds_next')
-                self.gaes = tf.placeholder(dtype=tf.float32, shape=[None], name='gaes')
-                self.returns = tf.placeholder(dtype=tf.float32, shape=[None], name='returns')
+            with tf.compat.v1.variable_scope('train_inp'):
+                self.tech_actions = tf.compat.v1.placeholder(dtype=tf.int32, shape=[None], name='tech_actions')
+                self.rewards = tf.compat.v1.placeholder(dtype=tf.float32, shape=[None], name='rewards')
+                self.v_preds_next = tf.compat.v1.placeholder(dtype=tf.float32, shape=[None], name='v_preds_next')
+                self.gaes = tf.compat.v1.placeholder(dtype=tf.float32, shape=[None], name='gaes')
+                self.returns = tf.compat.v1.placeholder(dtype=tf.float32, shape=[None], name='returns')
 
                 # define distribute variable
-                self.returns_sum = tf.get_variable(name="returns_sum", shape=[], initializer=tf.zeros_initializer)
-                self.proc_num = tf.get_variable(name="proc_num", shape=[], initializer=tf.zeros_initializer)
+                self.returns_sum = tf.compat.v1.get_variable(name="returns_sum", shape=[], initializer=tf.compat.v1.zeros_initializer)
+                self.proc_num = tf.compat.v1.get_variable(name="proc_num", shape=[], initializer=tf.compat.v1.zeros_initializer)
 
             tech_act_probs = self.Policy.tech_probs
             tech_act_probs_old = self.Old_Policy.tech_probs
@@ -184,11 +184,11 @@ class PPOTrain:
 
             act_probs_old = tech_act_probs_old
 
-            with tf.variable_scope('loss'):
+            with tf.compat.v1.variable_scope('loss'):
                 # construct computation graph for loss_clip
                 # ratios = tf.divide(act_probs, act_probs_old)
-                ratios = tf.exp(tf.log(tf.clip_by_value(act_probs, 1e-10, 1.0))
-                                - tf.log(tf.clip_by_value(act_probs_old, 1e-10, 1.0)))
+                ratios = tf.exp(tf.math.log(tf.clip_by_value(act_probs, 1e-10, 1.0))
+                                - tf.math.log(tf.clip_by_value(act_probs_old, 1e-10, 1.0)))
                 clipped_ratios = tf.clip_by_value(ratios, clip_value_min=1 - self.clip_value,
                                                   clip_value_max=1 + self.clip_value)
                 loss_clip = tf.minimum(tf.multiply(self.gaes, ratios), tf.multiply(self.gaes, clipped_ratios))
@@ -196,21 +196,21 @@ class PPOTrain:
 
                 # construct computation graph for loss of entropy bonus
                 tech_entropy = -tf.reduce_sum(self.Policy.tech_probs *
-                                              tf.log(tf.clip_by_value(self.Policy.tech_probs, 1e-10, 1.0)), axis=1)
+                                              tf.math.log(tf.clip_by_value(self.Policy.tech_probs, 1e-10, 1.0)), axis=1)
                 entropy = tech_entropy
                 self.entropy = tf.reduce_mean(entropy, axis=0)  # mean of entropy of pi(obs)
 
                 # construct computation graph for loss of value function
                 v_preds = self.Policy.v_preds
-                loss_vf = tf.squared_difference(self.rewards + self.gamma * self.v_preds_next, v_preds)
+                loss_vf = tf.math.squared_difference(self.rewards + self.gamma * self.v_preds_next, v_preds)
                 self.loss_vf = tf.reduce_mean(loss_vf)
 
                 # construct computation graph for loss
                 self.total_loss = self.loss_clip + self.c_1 * self.loss_vf - self.c_2 * self.entropy
-                self.sum_mean_returns = tf.summary.scalar('mean_return_dis', self.returns_sum / (self.proc_num + 0.0001))
+                self.sum_mean_returns = tf.compat.v1.summary.scalar('mean_return_dis', self.returns_sum / (self.proc_num + 0.0001))
 
-            self.merged_dis = tf.summary.merge([self.sum_mean_returns])
-            optimizer = tf.train.AdamOptimizer(learning_rate=self.adam_lr, epsilon=self.adam_epsilon)
+            self.merged_dis = tf.compat.v1.summary.merge([self.sum_mean_returns])
+            optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=self.adam_lr, epsilon=self.adam_epsilon)
             self.gradients = optimizer.compute_gradients(self.total_loss, var_list=pi_trainable)
 
             self.train_op = optimizer.minimize(self.total_loss, var_list=pi_trainable)

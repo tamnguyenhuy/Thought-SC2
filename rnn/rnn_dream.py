@@ -45,7 +45,7 @@ TEMPERATURE = 1.25 # train with this temperature
 def reset_graph():
   if 'sess' in globals() and sess:
     sess.close()
-  tf.reset_default_graph()
+  tf.compat.v1.reset_default_graph()
 
 class ConvVAE(object):
   def __init__(self, z_size=64, batch_size=100, learning_rate=0.0001, kl_tolerance=0.5, is_training=True, reuse=False, gpu_mode=True):
@@ -56,13 +56,13 @@ class ConvVAE(object):
     self.kl_tolerance = kl_tolerance
     self.reuse = reuse
     #self._build_graph()
-    with tf.variable_scope('conv_vae', reuse=self.reuse):
+    with tf.compat.v1.variable_scope('conv_vae', reuse=self.reuse):
       if not gpu_mode:
         with tf.device('/cpu:0'):
-          tf.logging.info('Model using cpu.')
+          tf.compat.v1.logging.info('Model using cpu.')
           self._build_graph()
       else:
-        tf.logging.info('Model using gpu.')
+        tf.compat.v1.logging.info('Model using gpu.')
         self._build_graph()
  
 
@@ -72,29 +72,29 @@ class ConvVAE(object):
     with self.g.as_default():
       #with tf.device('/gpu:0'):
       #  with tf.variable_scope('conv_vae', reuse=self.reuse):
-          self.x = tf.placeholder(tf.float32, shape=[None, 64, 64, IMAGE_CHANNELS])
+          self.x = tf.compat.v1.placeholder(tf.float32, shape=[None, 64, 64, IMAGE_CHANNELS])
 
           # Encoder
-          h = tf.layers.conv2d(self.x, 32, 4, strides=2, activation=tf.nn.relu, name="enc_conv1")
-          h = tf.layers.conv2d(h, 64, 4, strides=2, activation=tf.nn.relu, name="enc_conv2")
-          h = tf.layers.conv2d(h, 128, 4, strides=2, activation=tf.nn.relu, name="enc_conv3")
-          h = tf.layers.conv2d(h, 256, 4, strides=2, activation=tf.nn.relu, name="enc_conv4")
+          h = tf.compat.v1.layers.conv2d(self.x, 32, 4, strides=2, activation=tf.nn.relu, name="enc_conv1")
+          h = tf.compat.v1.layers.conv2d(h, 64, 4, strides=2, activation=tf.nn.relu, name="enc_conv2")
+          h = tf.compat.v1.layers.conv2d(h, 128, 4, strides=2, activation=tf.nn.relu, name="enc_conv3")
+          h = tf.compat.v1.layers.conv2d(h, 256, 4, strides=2, activation=tf.nn.relu, name="enc_conv4")
           h = tf.reshape(h, [-1, 2*2*256])
 
           # VAE
-          self.mu = tf.layers.dense(h, self.z_size, name="enc_fc_mu")
-          self.logvar = tf.layers.dense(h, self.z_size, name="enc_fc_log_var")
+          self.mu = tf.compat.v1.layers.dense(h, self.z_size, name="enc_fc_mu")
+          self.logvar = tf.compat.v1.layers.dense(h, self.z_size, name="enc_fc_log_var")
           self.sigma = tf.exp(self.logvar / 2.0)
-          self.epsilon = tf.random_normal([self.batch_size, self.z_size])
+          self.epsilon = tf.random.normal([self.batch_size, self.z_size])
           self.z = self.mu + self.sigma * self.epsilon
 
           # Decoder
-          h = tf.layers.dense(self.z, 4*256, name="dec_fc")
+          h = tf.compat.v1.layers.dense(self.z, 4*256, name="dec_fc")
           h = tf.reshape(h, [-1, 1, 1, 4*256])
-          h = tf.layers.conv2d_transpose(h, 128, 5, strides=2, activation=tf.nn.relu, name="dec_deconv1")
-          h = tf.layers.conv2d_transpose(h, 64, 5, strides=2, activation=tf.nn.relu, name="dec_deconv2")
-          h = tf.layers.conv2d_transpose(h, 32, 6, strides=2, activation=tf.nn.relu, name="dec_deconv3")
-          self.y = tf.layers.conv2d_transpose(h, IMAGE_CHANNELS, 6, strides=2, activation=tf.nn.sigmoid, name="dec_deconv4")
+          h = tf.compat.v1.layers.conv2d_transpose(h, 128, 5, strides=2, activation=tf.nn.relu, name="dec_deconv1")
+          h = tf.compat.v1.layers.conv2d_transpose(h, 64, 5, strides=2, activation=tf.nn.relu, name="dec_deconv2")
+          h = tf.compat.v1.layers.conv2d_transpose(h, 32, 6, strides=2, activation=tf.nn.relu, name="dec_deconv3")
+          self.y = tf.compat.v1.layers.conv2d_transpose(h, IMAGE_CHANNELS, 6, strides=2, activation=tf.nn.sigmoid, name="dec_deconv4")
           
           # train ops
           if self.is_training:
@@ -105,14 +105,14 @@ class ConvVAE(object):
             # reconstruction loss
             self.r_loss = tf.reduce_sum(
               tf.square(self.x - self.y),
-              reduction_indices = [1,2,3]
+              axis = [1,2,3]
             )
             self.r_loss = tf.reduce_mean(self.r_loss)
 
             # augmented kl loss per dim
             self.kl_loss = - 0.5 * tf.reduce_sum(
               (1 + self.logvar - tf.square(self.mu) - tf.exp(self.logvar)),
-              reduction_indices = 1
+              axis = 1
             )
             #self.kl_loss = tf.maximum(self.kl_loss, self.kl_tolerance * self.z_size)
             self.kl_loss = tf.reduce_mean(self.kl_loss)
@@ -121,34 +121,34 @@ class ConvVAE(object):
             
             # training
             self.lr = tf.Variable(self.learning_rate, trainable=False)
-            self.optimizer = tf.train.AdamOptimizer(self.lr)
+            self.optimizer = tf.compat.v1.train.AdamOptimizer(self.lr)
             grads = self.optimizer.compute_gradients(self.loss) # can potentially clip gradients here.
 
             self.train_op = self.optimizer.apply_gradients(
               grads, global_step=self.global_step, name='train_step')
 
           # initialize vars
-          self.init = tf.global_variables_initializer()
+          self.init = tf.compat.v1.global_variables_initializer()
           
           # Create assign opsfor VAE
-          t_vars = tf.trainable_variables()
+          t_vars = tf.compat.v1.trainable_variables()
           self.assign_ops = {}
           for var in t_vars:
               print(var)
               #if var.name.startswith('conv_vae'):
               pshape = var.get_shape()
-              pl = tf.placeholder(tf.float32, pshape, var.name[:-2]+'_placeholder')
+              pl = tf.compat.v1.placeholder(tf.float32, pshape, var.name[:-2]+'_placeholder')
               assign_op = var.assign(pl)
               self.assign_ops[var] = (assign_op, pl)
 
   def _init_session(self):
     """Launch TensorFlow session and initialize variables"""
-    config = tf.ConfigProto(
+    config = tf.compat.v1.ConfigProto(
         allow_soft_placement=True, log_device_placement=False,
     )
     config.gpu_options.allow_growth = True
 
-    self.sess = tf.Session(graph=self.g, config=config) 
+    self.sess = tf.compat.v1.Session(graph=self.g, config=config) 
     self.sess.run(self.init)
 
   def close_sess(self):
@@ -169,7 +169,7 @@ class ConvVAE(object):
     model_params = []
     model_shapes = []
     with self.g.as_default():
-      t_vars = tf.trainable_variables()
+      t_vars = tf.compat.v1.trainable_variables()
       for var in t_vars:
         #if var.name.startswith('conv_vae'):
           param_name = var.name
@@ -190,7 +190,7 @@ class ConvVAE(object):
     return rparam
   def set_model_params(self, params):
     with self.g.as_default():
-      t_vars = tf.trainable_variables()
+      t_vars = tf.compat.v1.trainable_variables()
       idx = 0
       for var in t_vars:
         #if var.name.startswith('conv_vae'):
@@ -221,17 +221,17 @@ class ConvVAE(object):
   def save_model(self, model_save_path):
     sess = self.sess
     with self.g.as_default():
-      saver = tf.train.Saver(tf.global_variables())
+      saver = tf.compat.v1.train.Saver(tf.compat.v1.global_variables())
     checkpoint_path = os.path.join(model_save_path, 'vae')
-    tf.logging.info('saving model %s.', checkpoint_path)
+    tf.compat.v1.logging.info('saving model %s.', checkpoint_path)
     saver.save(sess, checkpoint_path, 0) # just keep one
   def load_checkpoint(self, checkpoint_path):
     sess = self.sess
     with self.g.as_default():
-      saver = tf.train.Saver(tf.global_variables())
+      saver = tf.compat.v1.train.Saver(tf.compat.v1.global_variables())
     ckpt = tf.train.get_checkpoint_state(checkpoint_path)
     print('loading model', ckpt.model_checkpoint_path)
-    tf.logging.info('Loading model %s.', ckpt.model_checkpoint_path)
+    tf.compat.v1.logging.info('Loading model %s.', ckpt.model_checkpoint_path)
     saver.restore(sess, ckpt.model_checkpoint_path)
 
 HyperParams = namedtuple('HyperParams', ['num_steps',
@@ -290,7 +290,7 @@ class DreamModel():
       with tf.device('/gpu:0'):
         with tf.variable_scope('mdn_rnn', reuse=reuse):
           self.build_model(hps)'''
-    with tf.variable_scope('mdn_rnn', reuse=reuse):
+    with tf.compat.v1.variable_scope('mdn_rnn', reuse=reuse):
       if not gpu_mode:
         with tf.device("/cpu:0"):
           print("model using cpu")
@@ -342,11 +342,11 @@ class DreamModel():
 
     self.sequence_lengths = LENGTH # assume every sample has same length.
     
-    self.batch_z = tf.placeholder(dtype=tf.float32, shape=[self.hps.batch_size, self.hps.max_seq_len, WIDTH])
-    self.batch_obs = tf.placeholder(dtype=tf.float32, shape=[self.hps.batch_size, self.hps.max_seq_len, OBS_WIDTH])
-    self.batch_action = tf.placeholder(dtype=tf.int32, shape=[self.hps.batch_size, self.hps.max_seq_len])
-    self.batch_reward = tf.placeholder(dtype=tf.int32, shape=[self.hps.batch_size, self.hps.max_seq_len])
-    self.batch_restart = tf.placeholder(dtype=tf.int32, shape=[self.hps.batch_size, self.hps.max_seq_len])
+    self.batch_z = tf.compat.v1.placeholder(dtype=tf.float32, shape=[self.hps.batch_size, self.hps.max_seq_len, WIDTH])
+    self.batch_obs = tf.compat.v1.placeholder(dtype=tf.float32, shape=[self.hps.batch_size, self.hps.max_seq_len, OBS_WIDTH])
+    self.batch_action = tf.compat.v1.placeholder(dtype=tf.int32, shape=[self.hps.batch_size, self.hps.max_seq_len])
+    self.batch_reward = tf.compat.v1.placeholder(dtype=tf.int32, shape=[self.hps.batch_size, self.hps.max_seq_len])
+    self.batch_restart = tf.compat.v1.placeholder(dtype=tf.int32, shape=[self.hps.batch_size, self.hps.max_seq_len])
 
     self.input_z = self.batch_z[:, :LENGTH, :]
     self.input_obs = self.batch_obs[:, :LENGTH, :]
@@ -369,7 +369,7 @@ class DreamModel():
 
     def custom_rnn_autodecoder(decoder_inputs, input_restart, initial_state, cell, scope=None):
       # customized rnn_decoder for the task of dealing with restart
-      with tf.variable_scope(scope or "RNN"):
+      with tf.compat.v1.variable_scope(scope or "RNN"):
         state = initial_state
         zero_c, zero_h = self.zero_state
         outputs = []
@@ -378,17 +378,17 @@ class DreamModel():
         for i in range(LENGTH):
           inp = decoder_inputs[i]
           if i > 0:
-            tf.get_variable_scope().reuse_variables()
+            tf.compat.v1.get_variable_scope().reuse_variables()
 
           # if restart is 1, then set lstm state to zero
           restart_flag = tf.greater(input_restart[:, i], 0)
 
           c, h = state
 
-          c = tf.where(restart_flag, zero_c, c)
-          h = tf.where(restart_flag, zero_h, h)
+          c = tf.compat.v1.where(restart_flag, zero_c, c)
+          h = tf.compat.v1.where(restart_flag, zero_h, h)
 
-          output, state = cell(inp, tf.nn.rnn_cell.LSTMStateTuple(c, h))
+          output, state = cell(inp, tf.compat.v1.nn.rnn_cell.LSTMStateTuple(c, h))
           outputs.append(output)
 
       return outputs, state
@@ -400,21 +400,21 @@ class DreamModel():
     NOUT = (WIDTH + OBS_WIDTH) * KMIX * 3 # plus 1 to predict the restart state.
     ROUT = reward_channels
 
-    with tf.variable_scope('RNN'):
-      output_w = tf.get_variable("output_w", [self.hps.rnn_size, NOUT])
-      output_b = tf.get_variable("output_b", [NOUT])
+    with tf.compat.v1.variable_scope('RNN'):
+      output_w = tf.compat.v1.get_variable("output_w", [self.hps.rnn_size, NOUT])
+      output_b = tf.compat.v1.get_variable("output_b", [NOUT])
 
-    with tf.variable_scope('Restart'):
-      restart_w = tf.get_variable("restart_w", [self.hps.rnn_size, ROUT])
-      restart_b = tf.get_variable("restart_b", [ROUT])
+    with tf.compat.v1.variable_scope('Restart'):
+      restart_w = tf.compat.v1.get_variable("restart_w", [self.hps.rnn_size, ROUT])
+      restart_b = tf.compat.v1.get_variable("restart_b", [ROUT])
 
     rnn_output = tf.reshape(output, [-1, hps.rnn_size])
 
-    output = tf.nn.xw_plus_b(rnn_output, output_w, output_b)
-    self.out_reward_logits = tf.nn.xw_plus_b(rnn_output, restart_w, restart_b)
+    output = tf.compat.v1.nn.xw_plus_b(rnn_output, output_w, output_b)
+    self.out_reward_logits = tf.compat.v1.nn.xw_plus_b(rnn_output, restart_w, restart_b)
 
     self.out_restart_prob = tf.nn.softmax(self.out_reward_logits)
-    self.out_restart = tf.multinomial(tf.log(self.out_restart_prob), num_samples=1)
+    self.out_restart = tf.random.categorical(tf.math.log(self.out_restart_prob), num_samples=1)
     print('self.out_restart:', self.out_restart)
     
     output = tf.reshape(output, [-1, KMIX * 3])
@@ -459,34 +459,34 @@ class DreamModel():
 
     if self.hps.is_training == 1:
       self.lr = tf.Variable(self.hps.learning_rate, trainable=False)
-      optimizer = tf.train.AdamOptimizer(self.lr)
+      optimizer = tf.compat.v1.train.AdamOptimizer(self.lr)
 
       gvs = optimizer.compute_gradients(self.cost)
       capped_gvs = [(tf.clip_by_value(grad, -self.hps.grad_clip, self.hps.grad_clip), var) for grad, var in gvs]
       self.train_op = optimizer.apply_gradients(capped_gvs, global_step=self.global_step, name='train_step')
 
     # initialize vars
-    self.init = tf.global_variables_initializer()
+    self.init = tf.compat.v1.global_variables_initializer()
     
-    t_vars = tf.trainable_variables()
+    t_vars = tf.compat.v1.trainable_variables()
     self.assign_ops = {}
     for var in t_vars:
       #if var.name.startswith('mdn_rnn'):
       print(var)
       pshape = var.get_shape()
-      pl = tf.placeholder(tf.float32, pshape, var.name[:-2]+'_placeholder')
+      pl = tf.compat.v1.placeholder(tf.float32, pshape, var.name[:-2]+'_placeholder')
       assign_op = var.assign(pl)
       self.assign_ops[var] = (assign_op, pl)
     
   def init_session(self):
     """Launch TensorFlow session and initialize variables"""
     """Launch TensorFlow session and initialize variables"""
-    config = tf.ConfigProto(
+    config = tf.compat.v1.ConfigProto(
         allow_soft_placement=True, log_device_placement=False,
     )
     config.gpu_options.allow_growth = True
 
-    self.sess = tf.Session(graph=self.g, config=config) 
+    self.sess = tf.compat.v1.Session(graph=self.g, config=config) 
     self.sess.run(self.init)
 
   def close_sess(self):
@@ -496,18 +496,18 @@ class DreamModel():
   def save_model(self, model_save_path, epoch):
     sess = self.sess
     with self.g.as_default():
-      saver = tf.train.Saver(tf.global_variables())
+      saver = tf.compat.v1.train.Saver(tf.compat.v1.global_variables())
     checkpoint_path = os.path.join(model_save_path, 'sc_rnn')
-    tf.logging.info('saving model %s.', checkpoint_path)
+    tf.compat.v1.logging.info('saving model %s.', checkpoint_path)
     saver.save(sess, checkpoint_path, epoch) # just keep one
 
   def load_checkpoint(self, checkpoint_path):
     sess = self.sess
     with self.g.as_default():
-      saver = tf.train.Saver(tf.global_variables())
+      saver = tf.compat.v1.train.Saver(tf.compat.v1.global_variables())
     ckpt = tf.train.get_checkpoint_state(checkpoint_path)
     print('loading model', ckpt.model_checkpoint_path)
-    tf.logging.info('Loading model %s.', ckpt.model_checkpoint_path)
+    tf.compat.v1.logging.info('Loading model %s.', ckpt.model_checkpoint_path)
     saver.restore(sess, ckpt.model_checkpoint_path)
 
 
@@ -517,7 +517,7 @@ class DreamModel():
     model_params = []
     model_shapes = []
     with self.g.as_default():
-      t_vars = tf.trainable_variables()
+      t_vars = tf.compat.v1.trainable_variables()
       for var in t_vars:
         #if var.name.startswith('mdn_rnn'):
         param_name = var.name
@@ -543,7 +543,7 @@ class DreamModel():
 
   def set_model_params(self, params):
     with self.g.as_default():
-      t_vars = tf.trainable_variables()
+      t_vars = tf.compat.v1.trainable_variables()
       idx = 0
       for var in t_vars:
         #if var.name.startswith('mdn_rnn'):
@@ -655,7 +655,7 @@ class ScRNNEnv(gym.Env):
 
   def _seed(self, seed=None):
     if seed:
-      tf.set_random_seed(seed)
+      tf.compat.v1.set_random_seed(seed)
     self.np_random, seed = seeding.np_random(seed)
     return [seed]
 

@@ -9,7 +9,7 @@ import tensorflow.contrib as tf_contrib
 # Normal : tf.random_normal_initializer(mean=0.0, stddev=0.02)
 # l2_decay : tf_contrib.layers.l2_regularizer(0.0001)
 
-weight_init = tf.random_normal_initializer(mean=0.0, stddev=0.02)
+weight_init = tf.compat.v1.random_normal_initializer(mean=0.0, stddev=0.02)
 weight_regularizer = tf_contrib.layers.l2_regularizer(0.0001)
 
 
@@ -18,8 +18,8 @@ weight_regularizer = tf_contrib.layers.l2_regularizer(0.0001)
 ##################################################################################
 
 def conv(x, channels, kernel=4, stride=2, padding='SAME', use_bias=True, scope='conv_0'):
-    with tf.variable_scope(scope):
-        x = tf.layers.conv2d(inputs=x, filters=channels,
+    with tf.compat.v1.variable_scope(scope):
+        x = tf.compat.v1.layers.conv2d(inputs=x, filters=channels,
                              kernel_size=kernel, kernel_initializer=weight_init,
                              kernel_regularizer=weight_regularizer,
                              strides=stride, use_bias=use_bias, padding=padding)
@@ -27,15 +27,15 @@ def conv(x, channels, kernel=4, stride=2, padding='SAME', use_bias=True, scope='
         return x
 
 def fully_conneted(x, units, use_bias=True, scope='fully_0'):
-    with tf.variable_scope(scope):
+    with tf.compat.v1.variable_scope(scope):
         x = flatten(x)
-        x = tf.layers.dense(x, units=units, kernel_initializer=weight_init, kernel_regularizer=weight_regularizer, use_bias=use_bias)
+        x = tf.compat.v1.layers.dense(x, units=units, kernel_initializer=weight_init, kernel_regularizer=weight_regularizer, use_bias=use_bias)
 
         return x
 
 
 def simple_resblock(x_init, channels, is_training=True, use_bias=True, downsample=False, scope='simple_resblock') :
-    with tf.variable_scope(scope) :   
+    with tf.compat.v1.variable_scope(scope) :   
         x = x_init
         if downsample :
             x = conv(x, channels, kernel=3, stride=2, use_bias=use_bias, scope='conv_0')
@@ -51,7 +51,7 @@ def simple_resblock(x_init, channels, is_training=True, use_bias=True, downsampl
 
 
 def simple_resblock_changed(x_init, channels, is_training=True, use_bias=True, downsample=False, scope='resblock') :
-    with tf.variable_scope(scope) :   
+    with tf.compat.v1.variable_scope(scope) :   
 
         #x = batch_norm(x_init, is_training, scope='batch_norm_0')
         #x = relu(x)
@@ -75,7 +75,7 @@ def simple_resblock_changed(x_init, channels, is_training=True, use_bias=True, d
 
 
 def resblock(x_init, channels, is_training=True, use_bias=True, downsample=False, scope='resblock') :
-    with tf.variable_scope(scope) :
+    with tf.compat.v1.variable_scope(scope) :
 
         x = batch_norm(x_init, is_training, scope='batch_norm_0')
         x = relu(x)
@@ -97,7 +97,7 @@ def resblock(x_init, channels, is_training=True, use_bias=True, downsample=False
         return x + x_init
 
 def bottle_resblock(x_init, channels, is_training=True, use_bias=True, downsample=False, scope='bottle_resblock') :
-    with tf.variable_scope(scope) :
+    with tf.compat.v1.variable_scope(scope) :
         x = batch_norm(x_init, is_training, scope='batch_norm_1x1_front')
         shortcut = relu(x)
 
@@ -148,14 +148,14 @@ def get_residual_layer(res_n) :
 ##################################################################################
 
 def flatten(x) :
-    return tf.layers.flatten(x)
+    return tf.compat.v1.layers.flatten(x)
 
 def global_avg_pooling(x):
     gap = tf.reduce_mean(x, axis=[1, 2], keepdims=True)
     return gap
 
 def avg_pooling(x) :
-    return tf.layers.average_pooling2d(x, pool_size=2, strides=2, padding='SAME')
+    return tf.compat.v1.layers.average_pooling2d(x, pool_size=2, strides=2, padding='SAME')
 
 ##################################################################################
 # Activation function
@@ -181,7 +181,7 @@ def batch_norm(x, is_training=True, scope='batch_norm'):
 ##################################################################################
 
 def classification_loss(logit, label) :
-    loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(labels=label, logits=logit))
+    loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=label, logits=logit))
     prediction = tf.equal(tf.argmax(logit, -1), tf.argmax(label, -1))
     accuracy = tf.reduce_mean(tf.cast(prediction, tf.float32))
 
@@ -193,7 +193,7 @@ def classification_loss(logit, label) :
 # Our simple resnet
 ##################################################################################
 def simple_resnet(x, res_n, out_dim, name='Resnet', is_training=True, reuse=False):
-    with tf.variable_scope(name, reuse=reuse):
+    with tf.compat.v1.variable_scope(name, reuse=reuse):
         residual_block = simple_resblock
         residual_list = [2, 2, 2, 2]
 
@@ -234,14 +234,14 @@ def simple_resnet(x, res_n, out_dim, name='Resnet', is_training=True, reuse=Fals
         x = fully_conneted(x, units=out_dim, scope='resnet_out')
         x = relu(x)
         
-        return x, tf.get_variable_scope().name
+        return x, tf.compat.v1.get_variable_scope().name
 
 
 ##################################################################################
 # Our simple resnet
 ##################################################################################
 def simple_resnet_changed(x, res_n, out_dim, name='Resnet', is_training=True, reuse=False):
-    with tf.variable_scope(name, reuse=reuse):
+    with tf.compat.v1.variable_scope(name, reuse=reuse):
         residual_block = simple_resblock_changed
         residual_list = [2, 2, 2, 2]
 
@@ -282,13 +282,13 @@ def simple_resnet_changed(x, res_n, out_dim, name='Resnet', is_training=True, re
         x = fully_conneted(x, units=out_dim, scope='resnet_out')
         x = relu(x)
         
-        return x, tf.get_variable_scope().name
+        return x, tf.compat.v1.get_variable_scope().name
 
 ##################################################################################
 # Our resnet (with BN)
 ##################################################################################
 def resnet(x, res_n, out_dim, name='Resnet', is_training=True, reuse=False):
-    with tf.variable_scope(name, reuse=reuse):
+    with tf.compat.v1.variable_scope(name, reuse=reuse):
 
         if res_n < 50 :
             residual_block = resblock
@@ -334,7 +334,7 @@ def resnet(x, res_n, out_dim, name='Resnet', is_training=True, reuse=False):
         x = fully_conneted(x, units=out_dim, scope='resnet_out')
         x = relu(x)
         
-        return x, tf.get_variable_scope().name
+        return x, tf.compat.v1.get_variable_scope().name
 
 
 
@@ -344,7 +344,7 @@ def resnet(x, res_n, out_dim, name='Resnet', is_training=True, reuse=False):
 
 
 def network(x, res_n, label_dim, is_training=True, reuse=False):
-    with tf.variable_scope("network", reuse=reuse):
+    with tf.compat.v1.variable_scope("network", reuse=reuse):
 
         if res_n < 50 :
             residual_block = resblock

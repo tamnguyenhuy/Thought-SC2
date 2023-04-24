@@ -269,11 +269,11 @@ def test():
 
 
 def net_test():
-    config = tf.ConfigProto(
+    config = tf.compat.v1.ConfigProto(
         allow_soft_placement=True, log_device_placement=False,
     )
     config.gpu_options.allow_growth = True
-    sess = tf.Session(config=config)
+    sess = tf.compat.v1.Session(config=config)
     now = datetime.now()
     model_path = "./model/" + now.strftime("%Y%m%d-%H%M%S") + "_mini/"
     mini_net = MiniNetwork(sess, ppo_load_path=model_path, ppo_save_path=model_path)

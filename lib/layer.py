@@ -31,20 +31,20 @@ def get_initializer(in_dim, out_dim, initial_type='original'):
     he = np.sqrt(2. / in_dim)
 
     if initial_type == 'original' :
-        w_init = tf.random_uniform_initializer(-d, d)
-        b_init = tf.random_uniform_initializer(-d, d)
+        w_init = tf.compat.v1.random_uniform_initializer(-d, d)
+        b_init = tf.compat.v1.random_uniform_initializer(-d, d)
     elif initial_type == 'normal' :
-        w_init = tf.random_normal_initializer(-normal, normal)
-        b_init = tf.random_normal_initializer(-normal, normal)        
+        w_init = tf.compat.v1.random_normal_initializer(-normal, normal)
+        b_init = tf.compat.v1.random_normal_initializer(-normal, normal)        
     elif initial_type == 'xavier':             
-        w_init = tf.random_uniform_initializer(-xavier, xavier)
-        b_init = tf.random_uniform_initializer(-xavier, xavier)
+        w_init = tf.compat.v1.random_uniform_initializer(-xavier, xavier)
+        b_init = tf.compat.v1.random_uniform_initializer(-xavier, xavier)
     elif initial_type == 'he' :
-        w_init = tf.random_normal_initializer(stddev=he)
-        b_init = tf.zeros_initializer()
+        w_init = tf.compat.v1.random_normal_initializer(stddev=he)
+        b_init = tf.compat.v1.zeros_initializer()
     else:
-        w_init = tf.zeros_initializer()
-        b_init = tf.zeros_initializer()
+        w_init = tf.compat.v1.zeros_initializer()
+        b_init = tf.compat.v1.zeros_initializer()
 
     return w_init, b_init
 
@@ -54,19 +54,19 @@ def output_layer(data, out_dim, add_dim, name, func=tf.nn.relu, trainable=True, 
     shape = [in_dim, out_dim]
     shape_add = [in_dim, add_dim]
 
-    with tf.variable_scope(name):
+    with tf.compat.v1.variable_scope(name):
         w_init, b_init = get_initializer(in_dim, add_dim, initial_type=initial_type)
 
-        w = tf.get_variable(name="weights", shape=shape, initializer=w_init, trainable=trainable)
-        b = tf.get_variable(name="bias", shape=[out_dim], initializer=b_init, trainable=trainable)
+        w = tf.compat.v1.get_variable(name="weights", shape=shape, initializer=w_init, trainable=trainable)
+        b = tf.compat.v1.get_variable(name="bias", shape=[out_dim], initializer=b_init, trainable=trainable)
 
         output = tf.matmul(data, w) + b
 
         if add_dim > 0:
-            with tf.variable_scope("add_output_layer"):
+            with tf.compat.v1.variable_scope("add_output_layer"):
                 w_init_add, b_init_add = get_initializer(in_dim, add_dim, initial_type=initial_type)
-                w_add = tf.get_variable(name="weights", shape=shape_add, initializer=w_init_add, trainable=trainable)
-                b_add = tf.get_variable(name="bias", shape=[add_dim], initializer=b_init_add, trainable=trainable)
+                w_add = tf.compat.v1.get_variable(name="weights", shape=shape_add, initializer=w_init_add, trainable=trainable)
+                b_add = tf.compat.v1.get_variable(name="bias", shape=[add_dim], initializer=b_init_add, trainable=trainable)
 
                 output_add = tf.matmul(data, w_add) + b_add
 
@@ -85,11 +85,11 @@ def dense_layer(data, out_dim, name, func=tf.nn.relu, trainable=True, norm=False
     in_dim = data.get_shape().as_list()[-1]
     shape = [in_dim, out_dim]
 
-    with tf.variable_scope(name):
+    with tf.compat.v1.variable_scope(name):
         w_init, b_init = get_initializer(in_dim, out_dim, initial_type)
 
-        w = tf.get_variable(name="weights", shape=shape, initializer=w_init, trainable=trainable)
-        b = tf.get_variable(name="bias", shape=[out_dim], initializer=b_init, trainable=trainable)
+        w = tf.compat.v1.get_variable(name="weights", shape=shape, initializer=w_init, trainable=trainable)
+        b = tf.compat.v1.get_variable(name="bias", shape=[out_dim], initializer=b_init, trainable=trainable)
 
         output = tf.matmul(data, w) + b
 
@@ -107,14 +107,14 @@ def conv2d_layer(data, filter_size, filter_num, name, stride=1, func=tf.nn.relu,
     shape = [filter_size, filter_size, in_dim, filter_num]
     d = 1.0 / np.sqrt(filter_size * filter_size * in_dim)
 
-    with tf.variable_scope(name):
-        w_init = tf.random_uniform_initializer(-d, d)
-        b_init = tf.random_uniform_initializer(-d, d)
+    with tf.compat.v1.variable_scope(name):
+        w_init = tf.compat.v1.random_uniform_initializer(-d, d)
+        b_init = tf.compat.v1.random_uniform_initializer(-d, d)
 
-        w = tf.get_variable(name="weights", shape=shape, initializer=w_init, trainable=trainable)
-        b = tf.get_variable(name="bias", shape=[filter_num], initializer=b_init, trainable=trainable)
+        w = tf.compat.v1.get_variable(name="weights", shape=shape, initializer=w_init, trainable=trainable)
+        b = tf.compat.v1.get_variable(name="bias", shape=[filter_num], initializer=b_init, trainable=trainable)
 
-        output = tf.nn.conv2d(data, w, strides=[1, stride, stride, 1], padding='SAME', data_format="NHWC") + b
+        output = tf.nn.conv2d(data, filters=w, strides=[1, stride, stride, 1], padding='SAME', data_format="NHWC") + b
         if func is not None:
             output = func(output)
 
@@ -122,7 +122,7 @@ def conv2d_layer(data, filter_size, filter_num, name, stride=1, func=tf.nn.relu,
 
 
 def max_pool(data, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME'):
-    val = tf.nn.max_pool(data, ksize=ksize, strides=strides, padding=padding)
+    val = tf.nn.max_pool2d(input=data, ksize=ksize, strides=strides, padding=padding)
 
     return val
 

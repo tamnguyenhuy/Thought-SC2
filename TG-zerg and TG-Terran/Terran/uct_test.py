@@ -6,11 +6,11 @@ from hier_network import HierNetwork
 
 def test(is_restore=True):
     # train model
-    config = tf.ConfigProto(
+    config = tf.compat.v1.ConfigProto(
         allow_soft_placement=True, log_device_placement=False,
     )
     config.gpu_options.allow_growth = True
-    sess = tf.Session(config=config)
+    sess = tf.compat.v1.Session(config=config)
     # model_net = ModelNetwork('train', sess)
     # model_net.initialize()
     # if is_restore:
